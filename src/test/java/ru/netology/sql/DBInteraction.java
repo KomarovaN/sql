@@ -6,9 +6,15 @@ import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 import org.apache.commons.dbutils.handlers.BeanListHandler;
 import org.apache.commons.dbutils.handlers.ScalarHandler;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.UserDataHandler;
+import ru.netology.sql.data.DBHelper;
+import ru.netology.sql.data.DataHelper;
+import ru.netology.sql.page.LoginPage;
+import ru.netology.sql.page.VerificationPage;
 
 import java.nio.file.attribute.UserPrincipal;
 import java.sql.Connection;
@@ -16,42 +22,22 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 
+import static com.codeborne.selenide.Selenide.open;
+import static ru.netology.sql.data.DBHelper.cleanDB;
+
 public class DBInteraction {
-    @BeforeEach
-    void setUp() throws SQLException {
-        Faker faker = new Faker();
-        var runner = new QueryRunner();
-        String user = "app";
-        String pass = "9mREsvXDs9Gk89Ef";
-        String dataSQL = "INSERT INTO users(login, password) VALUES (?, ?);";
-        try (
-                Connection conn = DriverManager.getConnection("jdbc:mysqldb://localhost:3306/app", user, pass);
-        )
-        {
-            // обычная вставка
-            runner.update(conn, dataSQL, faker.name().username(), pass);
-            runner.update(conn, dataSQL, faker.name().username(), pass);
-        }
-    }
+
+    @AfterAll
+    static void setDown() { cleanDB(); }
 
     @Test
-    void stubTest() throws SQLException {
-        String countSQL = "SELECT COUNT(*) FROM users;";
-        String usersSQL = "SELECT * FROM users;";
-        String user = "app";
-        String pass = "9mREsvXDs9Gk89Ef";
-        QueryRunner runner = new QueryRunner();
-        try (
-                Connection conn = DriverManager.getConnection("jdbc:mysqldb://localhost:3306/app", user, pass);
-        )
-        {
-            MysqlxDatatypes.Object count = runner.query(conn, countSQL, new ScalarHandler<>());
-            System.out.println(count);
-            UserDataHandler first = runner.query(conn, usersSQL, new BeanHandler<>(UserDataHandler.class));
-            System.out.println(first);
-            List<UserDataHandler> all = runner.query(conn, usersSQL, new BeanListHandler<>(UserDataHandler.class));
-            System.out.println(all);
-        }
+    void shouldSuccessfulLogin() {
+        LoginPage loginPage = open("http://localhost:9999", LoginPage.class);
+        DataHelper.AuthInfo authInfo = DataHelper.getAuthInfoWithTestData();
+        VerificationPage verificationPage = loginPage.validLogin(authInfo);
+        verificationPage.verifyVerificationPage();
+        DataHelper.VerificationCode verificationCode = DBHelper.getVerificationCode();
+        verificationPage.validVerify(verificationCode.getCode());
     }
 }
 
